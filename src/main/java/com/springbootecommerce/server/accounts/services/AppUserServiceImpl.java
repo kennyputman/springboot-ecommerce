@@ -3,6 +3,7 @@ package com.springbootecommerce.server.accounts.services;
 import com.springbootecommerce.server.accounts.models.*;
 import com.springbootecommerce.server.accounts.repository.AppUserRepository;
 import com.springbootecommerce.server.accounts.repository.RoleRepository;
+import com.springbootecommerce.server.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,15 +23,18 @@ public class AppUserServiceImpl implements AppUserService {
     RoleRepository roleRepository;
     PasswordEncoder passwordEncoder;
     AuthenticationManager authenticationManager;
+    JwtUtils jwtUtils;
 
 
     @Autowired
     public AppUserServiceImpl(AppUserRepository repo, PasswordEncoder passwordEncoder,
-                              RoleRepository roleRepository, AuthenticationManager authenticationManager) {
+                              RoleRepository roleRepository, AuthenticationManager authenticationManager,
+                              JwtUtils jwtUtils) {
         this.appUserRepository = repo;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
         this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwtUtils;
     }
 
     @Override
@@ -53,8 +57,8 @@ public class AppUserServiceImpl implements AppUserService {
         user.setRoles(Collections.singletonList(roles));
 
         AppUser newUser = this.appUserRepository.save(user);
-
-        return new UserResDto(newUser.getUsername(), "somesecrettoken");
+        String token = jwtUtils.generateToken(newUser);
+        return new UserResDto(newUser.getUsername(), token);
     }
 
     @Override
@@ -64,7 +68,8 @@ public class AppUserServiceImpl implements AppUserService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // is this necessary?
-        Optional<AppUser> user = this.appUserRepository.findByUsername(userLoginDto.getUsername());
-        return new UserResDto(user.get().getUsername(), "secretlogintoken");
+        Optional<AppUser> user = this.appUserRepository.findByUsername(authentication.getName());
+        String token = jwtUtils.generateToken(user.get());
+        return new UserResDto(user.get().getUsername(), token);
     }
 }
